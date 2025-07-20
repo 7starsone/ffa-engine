@@ -12,11 +12,10 @@
     "node": "18.x"
   },
   "dependencies": {
-    "@sparticuz/chromium": "^126.0.0",
+    "@sparticuz/chromium": "119.0.0",               
     "express": "^4.19.2",
-    "puppeteer-core": "^22.0.0",
-    "puppeteer-extra": "^3.3.8",
-    "puppeteer-extra-plugin-stealth": "^2.11.8",
-    "uuid": "^9.0.1"
+    "puppeteer-core": "21.5.0",
+    "puppeteer-extra": "3.3.6",
+    "puppeteer-extra-plugin-stealth": "2.11.2"
   }
 }
