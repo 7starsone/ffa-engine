@@ -12,10 +12,11 @@
     "node": "18.x"
   },
   "dependencies": {
-    "@sparticuz/chromium": "119.0.0",
+    "@sparticuz/chromium": "^126.0.0",  <-- AGGIORNA
     "express": "^4.19.2",
-    "puppeteer-core": "21.5.0",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
+    "puppeteer-core": "^22.0.0",        <-- AGGIORNA (o lascia 21.x se preferisci ma meglio aggiornare con chromium)
+    "puppeteer-extra": "^3.3.8",       <-- AGGIORNA (ultima stabile)
+    "puppeteer-extra-plugin-stealth": "^2.11.8", <-- AGGIORNA (ultima stabile)
+    "uuid": "^9.0.1"                   <-- Se non lo avevi messo, aggiungilo per Metodo 1 se decidi
   }
 }
