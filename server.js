@@ -30,7 +30,23 @@ app.get('/', async (req, res) => {
                 '--window-position=0,0',
                 '--ignore-certificate-errors', // Ignora errori SSL
                 '--ignore-certificate-errors-spki-list',
-                `--user-agent=${getUserAgent()}` // Imposta un User-Agent a livello di browser
+                `--user-agent=${getUserAgent()}`, // Imposta un User-Agent a livello di browser
+                // Nuovi argomenti per anti-rilevamento
+                '--disable-dev-shm-usage', // Importante in ambienti Docker/Linux con RAM limitata
+                '--no-zygote',             // Per alcuni ambienti Linux
+                '--disable-gpu',           // Può aiutare
+                '--disable-software-rasterizer',
+                '--disable-background-networking',
+                '--disable-default-apps',
+                '--disable-extensions',
+                '--disable-sync',
+                '--disable-translate',
+                '--hide-scrollbars',
+                '--metrics-recording-only',
+                '--mute-audio',
+                '--no-first-run',
+                '--disable-features=site-per-process,site-isolation-trials', // A volte aiuta con alcuni rilevamenti
+                '--disable-blink-features=AutomationControlled' // Molto importante per anti-rilevamento
             ],
             defaultViewport: chromium.defaultViewport, // Viewport predefinito
             executablePath: await chromium.executablePath(), // Percorso dell'eseguibile Chromium
