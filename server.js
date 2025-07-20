@@ -27,21 +27,21 @@ app.get('/', async (req, res) => {
 
         const page = await browser.newPage();
         
-        // Vai alla pagina e attendi che sia completamente stabile
         await page.goto(urlToScrape, { 
             waitUntil: 'networkidle0',
             timeout: 30000 
         });
 
         // --- LA MODIFICA CHIAVE E DEFINITIVA ---
-        // Esegui uno script all'interno della pagina per estrarre il testo puro
-        // dal corpo della pagina. Quando un browser renderizza un file XML,
-        // il testo puro del corpo è l'XML stesso.
-        const xmlContent = await page.evaluate(() => document.body.textContent);
+        // Esegui uno script all'interno della pagina per estrarre il testo
+        // DENTRO il tag <pre> che il browser usa per mostrare il contenuto XML.
+        const xmlContent = await page.evaluate(() => {
+            const preElement = document.querySelector('pre');
+            return preElement ? preElement.textContent : null;
+        });
 
-        // Aggiungiamo un controllo per essere sicuri di non aver estratto una pagina vuota
         if (!xmlContent || xmlContent.trim().length < 50) {
-            throw new Error('Could not extract valid XML content from the page. The page might be empty or a soft-404.');
+            throw new Error('Could not extract valid XML content from the <pre> tag. The page structure might have changed.');
         }
         
         // Impostiamo l'header corretto per SimplePie e inviamo i dati puliti
