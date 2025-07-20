@@ -18,7 +18,15 @@ app.get('/', async (req, res) => {
     let browser = null;
     try {
         browser = await puppeteer.launch({
-            args: chromium.args,
+            args: [
+                ...chromium.args,
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-infobars',
+                '--window-position=0,0',
+                '--ignore-certifcate-errors',
+                '--ignore-certifcate-errors-spki-list',
+            ],
             defaultViewport: chromium.defaultViewport,
             executablePath: await chromium.executablePath(),
             headless: chromium.headless,
@@ -27,34 +35,53 @@ app.get('/', async (req, res) => {
 
         const page = await browser.newPage();
         
-        console.log("--- DEBUG: Avvio navigazione iniziale a: " + urlToScrape);
+        // Imposta un User-Agent umano e credibile
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36');
         
-        // 1. Vai alla pagina iniziale (la challenge)
-        await page.goto(urlToScrape, { 
-            waitUntil: 'domcontentloaded',
-            timeout: 30000 
+        // Vai alla pagina. Questa è la richiesta iniziale che riceverà la challenge.
+        const initialResponse = await page.goto(urlToScrape, { 
+            waitUntil: 'networkidle2', // Aspetta che la pagina sia quasi completamente stabile
+            timeout: 45000 // Aumentiamo il timeout a 45 secondi
         });
-        console.log("--- DEBUG: Pagina iniziale caricata. Attendo la navigazione della challenge...");
 
-        // 2. Aspetta che la challenge si risolva e faccia navigare la pagina
-        await page.waitForNavigation({
-            waitUntil: 'networkidle0',
-            timeout: 30000
-        });
-        console.log("--- DEBUG: Navigazione della challenge completata! Ora sono su: " + page.url());
+        // Controlla se siamo già sulla pagina giusta (potrebbe non esserci una challenge)
+        if (initialResponse.ok() && initialResponse.headers()['content-type'].includes('xml')) {
+            const content = await initialResponse.text();
+            res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+            return res.status(200).send(content);
+        }
 
-        // 3. Ora che siamo sulla pagina giusta, catturiamo il suo contenuto per analizzarlo
-        const finalPageContent = await page.content();
+        // Se siamo qui, probabilmente c'è una challenge. Cerchiamo un selettore comune di Cloudflare.
+        try {
+            await page.waitForSelector('h2#challenge-running', { timeout: 15000 });
+            console.log("Cloudflare challenge detected. Waiting for it to resolve...");
+            // A volte basta aspettare, il reindirizzamento è automatico
+            await page.waitForNavigation({
+                waitUntil: 'networkidle0',
+                timeout: 30000
+            });
+        } catch (e) {
+            // Se il selettore non appare, potrebbe essere un altro tipo di blocco o la pagina è già caricata.
+            console.log("No standard Cloudflare challenge detected, or it resolved quickly. Proceeding...");
+        }
 
-        // --- MODALITÀ DIAGNOSTICA ---
-        console.log("--- INIZIO DEBUG CONTENUTO HTML FINALE ---");
-        console.log(finalPageContent);
-        console.log("--- FINE DEBUG CONTENUTO HTML FINALE ---");
+        // Ora che la navigazione (si spera) è avvenuta, prendiamo il contenuto finale.
+        const finalContent = await page.content();
         
-        res.status(500).send('DIAGNOSTIC MODE: Check Render logs for the full page content.');
+        // Estraiamo l'XML dal corpo della pagina finale
+        const xmlContent = await page.evaluate(() => {
+            const preElement = document.querySelector('pre');
+            return preElement ? preElement.textContent : document.body.textContent;
+        });
+
+        if (!xmlContent || xmlContent.trim().length < 50) {
+            throw new Error('Could not extract valid XML content. The page might be empty or still blocked.');
+        }
+        
+        res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+        res.status(200).send(xmlContent);
 
     } catch (error) {
-        console.error("--- DEBUG: ERRORE CATTURATO NEL BLOCCO CATCH ---");
         console.error(error);
         res.status(500).send('The server encountered an error while scraping the page: ' + String(error));
     } finally {
