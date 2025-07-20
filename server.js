@@ -27,18 +27,26 @@ app.get('/', async (req, res) => {
 
         const page = await browser.newPage();
         
-        // CORREZIONE CHIAVE: Catturiamo l'oggetto della risposta dalla navigazione
-        const response = await page.goto(urlToScrape, { 
+        // Vai alla pagina e attendi che sia completamente stabile
+        await page.goto(urlToScrape, { 
             waitUntil: 'networkidle0',
             timeout: 30000 
         });
 
-        // Invece di page.content(), usiamo response.text() per ottenere il corpo grezzo
-        const content = await response.text();
+        // --- LA MODIFICA CHIAVE E DEFINITIVA ---
+        // Esegui uno script all'interno della pagina per estrarre il testo puro
+        // dal corpo della pagina. Quando un browser renderizza un file XML,
+        // il testo puro del corpo è l'XML stesso.
+        const xmlContent = await page.evaluate(() => document.body.textContent);
+
+        // Aggiungiamo un controllo per essere sicuri di non aver estratto una pagina vuota
+        if (!xmlContent || xmlContent.trim().length < 50) {
+            throw new Error('Could not extract valid XML content from the page. The page might be empty or a soft-404.');
+        }
         
-        // Impostiamo l'header corretto per SimplePie
+        // Impostiamo l'header corretto per SimplePie e inviamo i dati puliti
         res.setHeader('Content-Type', 'application/xml; charset=utf-8');
-        res.status(200).send(content);
+        res.status(200).send(xmlContent);
 
     } catch (error) {
         console.error(error);
