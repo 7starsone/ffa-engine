@@ -27,26 +27,28 @@ app.get('/', async (req, res) => {
 
         const page = await browser.newPage();
         
-        await page.goto(urlToScrape, { 
+        // --- LA MODIFICA CHIAVE E DEFINITIVA ---
+        // Andiamo alla pagina e catturiamo l'oggetto della risposta finale
+        const response = await page.goto(urlToScrape, { 
             waitUntil: 'networkidle0',
             timeout: 30000 
         });
 
-        // --- LA MODIFICA CHIAVE E DEFINITIVA ---
-        // Esegui uno script all'interno della pagina per estrarre il testo
-        // DENTRO il tag <pre> che il browser usa per mostrare il contenuto XML.
-        const xmlContent = await page.evaluate(() => {
-            const preElement = document.querySelector('pre');
-            return preElement ? preElement.textContent : null;
-        });
+        // Controlliamo se la risposta finale è valida
+        if (!response.ok()) {
+            throw new Error(`Failed to load the page: Status code ${response.status()}`);
+        }
 
-        if (!xmlContent || xmlContent.trim().length < 50) {
-            throw new Error('Could not extract valid XML content from the <pre> tag. The page structure might have changed.');
+        // Invece di analizzare il DOM, prendiamo il corpo della risposta grezza
+        const rawBody = await response.text();
+
+        if (!rawBody || rawBody.trim().length < 50) {
+            throw new Error('The response body was empty after a successful navigation.');
         }
         
         // Impostiamo l'header corretto per SimplePie e inviamo i dati puliti
         res.setHeader('Content-Type', 'application/xml; charset=utf-8');
-        res.status(200).send(xmlContent);
+        res.status(200).send(rawBody);
 
     } catch (error) {
         console.error(error);
