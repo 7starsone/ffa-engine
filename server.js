@@ -6,7 +6,7 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
 
 const app = express();
-const port = process.env.PORT || 10000; // Render usa la variabile PORT
+const port = process.env.PORT || 10000;
 
 app.get('/', async (req, res) => {
     const urlToScrape = req.query.url;
@@ -27,13 +27,16 @@ app.get('/', async (req, res) => {
 
         const page = await browser.newPage();
         
-        await page.goto(urlToScrape, { 
+        // CORREZIONE CHIAVE: Catturiamo l'oggetto della risposta dalla navigazione
+        const response = await page.goto(urlToScrape, { 
             waitUntil: 'networkidle0',
-            timeout: 30000 // 30 secondi
+            timeout: 30000 
         });
 
-        const content = await page.content();
+        // Invece di page.content(), usiamo response.text() per ottenere il corpo grezzo
+        const content = await response.text();
         
+        // Impostiamo l'header corretto per SimplePie
         res.setHeader('Content-Type', 'application/xml; charset=utf-8');
         res.status(200).send(content);
 
