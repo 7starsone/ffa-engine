@@ -1,0 +1,21 @@
+{
+  "name": "ffa-puppeteer-engine",
+  "version": "1.0.0",
+  "description": "A powerful Puppeteer engine for the Feed Fusion Autoposter plugin, designed for Render.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "kings",
+  "license": "ISC",
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {
+    "@sparticuz/chromium": "119.0.0",
+    "express": "^4.19.2",
+    "puppeteer-core": "21.5.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  }
+}
