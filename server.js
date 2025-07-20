@@ -27,28 +27,23 @@ app.get('/', async (req, res) => {
 
         const page = await browser.newPage();
         
-        // --- LA MODIFICA CHIAVE E DEFINITIVA ---
-        // Andiamo alla pagina e catturiamo l'oggetto della risposta finale
-        const response = await page.goto(urlToScrape, { 
+        await page.goto(urlToScrape, { 
             waitUntil: 'networkidle0',
             timeout: 30000 
         });
 
-        // Controlliamo se la risposta finale è valida
-        if (!response.ok()) {
-            throw new Error(`Failed to load the page: Status code ${response.status()}`);
-        }
+        // --- MODALITÀ DIAGNOSTICA ---
+        // Estraiamo l'intero contenuto HTML della pagina finale
+        const finalPageContent = await page.content();
 
-        // Invece di analizzare il DOM, prendiamo il corpo della risposta grezza
-        const rawBody = await response.text();
-
-        if (!rawBody || rawBody.trim().length < 50) {
-            throw new Error('The response body was empty after a successful navigation.');
-        }
+        // Logghiamo l'intero contenuto per l'analisi
+        console.log("--- INIZIO DEBUG CONTENUTO HTML FINALE ---");
+        console.log(finalPageContent);
+        console.log("--- FINE DEBUG CONTENUTO HTML FINALE ---");
         
-        // Impostiamo l'header corretto per SimplePie e inviamo i dati puliti
-        res.setHeader('Content-Type', 'application/xml; charset=utf-8');
-        res.status(200).send(rawBody);
+        // Per questo test, inviamo un messaggio di errore controllato al plugin,
+        // così sappiamo che lo script è stato eseguito ma che dobbiamo controllare i log.
+        res.status(500).send('DIAGNOSTIC MODE: Check Render logs for the full page content.');
 
     } catch (error) {
         console.error(error);
