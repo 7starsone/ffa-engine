@@ -31,10 +31,10 @@ app.get('/', async (req, res) => {
                 '--ignore-certificate-errors', // Ignora errori SSL
                 '--ignore-certificate-errors-spki-list',
                 `--user-agent=${getUserAgent()}`, // Imposta un User-Agent a livello di browser
-                // Nuovi argomenti per anti-rilevamento
-                '--disable-dev-shm-usage', // Importante in ambienti Docker/Linux con RAM limitata
-                '--no-zygote',             // Per alcuni ambienti Linux
-                '--disable-gpu',           // Può aiutare
+                // NUOVI ARGOMENTI PER ANTI-RILEVAMENTO
+                '--disable-dev-shm-usage', 
+                '--no-zygote',             
+                '--disable-gpu',           
                 '--disable-software-rasterizer',
                 '--disable-background-networking',
                 '--disable-default-apps',
@@ -45,8 +45,8 @@ app.get('/', async (req, res) => {
                 '--metrics-recording-only',
                 '--mute-audio',
                 '--no-first-run',
-                '--disable-features=site-per-process,site-isolation-trials', // A volte aiuta con alcuni rilevamenti
-                '--disable-blink-features=AutomationControlled' // Molto importante per anti-rilevamento
+                '--disable-features=site-per-process,site-isolation-trials', 
+                '--disable-blink-features=AutomationControlled' // MOLTO IMPORTANTE
             ],
             defaultViewport: chromium.defaultViewport, // Viewport predefinito
             executablePath: await chromium.executablePath(), // Percorso dell'eseguibile Chromium
@@ -59,6 +59,53 @@ app.get('/', async (req, res) => {
         // Imposta un User-Agent anche a livello di pagina (per ridondanza e robustezza)
         await page.setUserAgent(getUserAgent());
         
+        // --- INIZIO NUOVE MODIFICHE DI FINGERPRINTING JS ---
+        // Inietta JS per modificare proprietà comuni usate per il rilevamento bot.
+        // Questo codice viene eseguito su ogni frame nuovo/ricaricato.
+        await page.evaluateOnNewDocument(() => {
+            // Maschera navigator.webdriver
+            Object.defineProperty(navigator, 'webdriver', { get: () => false });
+
+            // Falsifica il numero di plugin installati
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] }); 
+
+            // Simula le lingue del browser
+            Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] }); 
+
+            // Simula la memoria del dispositivo
+            Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 }); 
+
+            // Imposta lo stato Do Not Track
+            Object.defineProperty(navigator, 'doNotTrack', { get: () => 'unspecified' }); 
+
+            // Rimuovi la stringa "HeadlessChrome" dal User-Agent (se presente)
+            const originalUserAgent = navigator.userAgent;
+            Object.defineProperty(navigator, 'userAgent', {
+                get: () => originalUserAgent.replace('HeadlessChrome', 'Chrome'),
+            });
+
+            // Maschera eventuali variabili globali di automazione (es. window.chrome per il rilevamento di Puppeteer)
+            window.navigator.chrome = { runtime: {}, app: {}, cs: {} };
+            window.chrome = { runtime: {}, app: {}, cs: {} };
+
+            // Falsifica la funzione getBoundingClientRect per elementi potenzialmente nascosti
+            const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+            Element.prototype.getBoundingClientRect = function() {
+                const rect = originalGetBoundingClientRect.call(this);
+                // Questa logica può essere complessa, qui un esempio base:
+                // Se l'elemento è nascosto e ha dimensioni zero, potremmo voler "normalizzarle"
+                // per evitare di sembrare troppo un bot. Questo è un campo minato.
+                if (this.offsetParent === null && rect.width === 0 && rect.height === 0) {
+                     return {
+                        x: 0, y: 0, width: 1, height: 1, top: 0, right: 1, bottom: 1, left: 0,
+                        toJSON: () => {} // Per compatibilità JSON
+                    };
+                }
+                return rect;
+            };
+        });
+        // --- FINE NUOVE MODIFICHE DI FINGERPRINTING JS ---
+
         // Aggiungi un piccolo ritardo casuale per simulare un comportamento più umano
         await page.waitForTimeout(getRandomInt(500, 1500)); // Aspetta tra 0.5 e 1.5 secondi
 
